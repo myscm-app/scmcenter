@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My SCM Center Portal</title>
+    
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Load React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- 3. Load Babel (untuk memproses JSX di browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 4. Load Lucide Icons (Versi Stabil Fixed) -->
+    <script src="https://unpkg.com/lucide@0.295.0/dist/umd/lucide.min.js"></script>
+
+    <style>
+        /* Custom Animations */
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+            animation: marquee 30s linear infinite;
+        }
+        .animate-marquee:hover {
+            animation-play-state: paused;
+        }
+        
+        /* Hide scrollbar for cleaner look in iframe */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICON HELPER COMPONENT ---
+        const LucideIcon = ({ name, className, ...props }) => {
+            const [svgContent, setSvgContent] = useState('');
+
+            useEffect(() => {
+                // Pastikan library lucide sudah dimuat
+                if (window.lucide && window.lucide.icons && window.lucide.icons[name]) {
+                    const iconDef = window.lucide.icons[name];
+                    
+                    // Cek apakah method toSvg tersedia (versi 0.295.0 pasti ada)
+                    if (typeof iconDef.toSvg === 'function') {
+                        const svgString = iconDef.toSvg({ 
+                            class: className, 
+                            ...props,
+                            width: props.width || 24,
+                            height: props.height || 24,
+                            'stroke-width': props.strokeWidth || 2
+                        });
+                        setSvgContent(svgString);
+                    } else {
+                        console.warn(`Icon ${name} found but toSvg is missing.`);
+                    }
+                }
+            }, [name, className, props]);
+
+            return <span dangerouslySetInnerHTML={{ __html: svgContent }} className={`inline-flex items-center justify-center ${className || ''}`} />;
+        };
+
+        // Definisi Komponen Icon
+        const Box = (p) => <LucideIcon name="Box" {...p} />;
+        const Home = (p) => <LucideIcon name="Home" {...p} />;
+        const Headphones = (p) => <LucideIcon name="Headphones" {...p} />;
+        const TrendingUp = (p) => <LucideIcon name="TrendingUp" {...p} />;
+        const Users = (p) => <LucideIcon name="Users" {...p} />;
+        const LogOut = (p) => <LucideIcon name="LogOut" {...p} />;
+        const Lock = (p) => <LucideIcon name="Lock" {...p} />;
+        const User = (p) => <LucideIcon name="User" {...p} />;
+        const Search = (p) => <LucideIcon name="Search" {...p} />;
+        const Bell = (p) => <LucideIcon name="Bell" {...p} />;
+        const Activity = (p) => <LucideIcon name="Activity" {...p} />;
+        const Truck = (p) => <LucideIcon name="Truck" {...p} />;
+        const Package = (p) => <LucideIcon name="Package" {...p} />;
+        const AlertCircle = (p) => <LucideIcon name="AlertCircle" {...p} />;
+        const MessageSquare = (p) => <LucideIcon name="MessageSquare" {...p} />;
+        const Send = (p) => <LucideIcon name="Send" {...p} />;
+        const X = (p) => <LucideIcon name="X" {...p} />;
+        const Bot = (p) => <LucideIcon name="Bot" {...p} />;
+        const Minimize2 = (p) => <LucideIcon name="Minimize2" {...p} />;
+        const RefreshCw = (p) => <LucideIcon name="RefreshCw" {...p} />;
+        const DollarSign = (p) => <LucideIcon name="DollarSign" {...p} />;
+        const AlertTriangle = (p) => <LucideIcon name="AlertTriangle" {...p} />;
+        const Info = (p) => <LucideIcon name="Info" {...p} />;
+
+
+        // --- COMPONENTS APLIKASI UTAMA ---
+
+        // 0. Footer Ticker Component
+        const FooterTicker = () => {
+            const newsItems = [
+                "⚠️ ALERT: Keterlambatan pengiriman jalur Pantura akibat perbaikan jalan (Est. Delay: 4 Jam)",
+                "⛴️ PORT INFO: Antrian bongkar muat di Pelabuhan Priok Gate 3 padat merayap",
+                "✅ SYSTEM: Maintenance SAP SCM Module selesai, sistem berjalan normal",
+                "📉 MARKET: Harga bahan bakar industri solar turun 0.5% per liter minggu ini",
+                "📦 WAREHOUSE: Stock Opname Gudang Cikarang dimulai besok pukul 08:00 WIB",
+                "🚨 REGULATION: Aturan baru ODOL (Over Dimension Over Load) efektif berlaku mulai Senin depan"
+            ];
+
+            return (
+                <div className="fixed bottom-0 left-0 w-full z-[60] h-10 bg-slate-900 border-t border-slate-700 flex items-center shadow-2xl">
+                    <div className="h-full bg-red-600 px-4 flex items-center gap-2 z-20 shadow-lg relative shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5 text-white animate-pulse" />
+                        <span className="text-[10px] font-black text-white tracking-widest uppercase">SCM ALERTS</span>
+                        <div className="absolute right-[-10px] top-0 w-0 h-0 border-t-[40px] border-t-transparent border-l-[10px] border-l-red-600 border-b-[0px] border-b-transparent"></div>
+                    </div>
+                    <div className="flex-1 overflow-hidden relative h-full flex items-center bg-slate-900">
+                        <div className="animate-marquee whitespace-nowrap absolute flex items-center gap-12 pl-4">
+                        {[...newsItems, ...newsItems].map((item, idx) => (
+                            <span key={idx} className="text-xs font-medium text-slate-300 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_cyan]"></span>
+                                {item}
+                            </span>
+                        ))}
+                        </div>
+                    </div>
+                    <div className="h-full bg-slate-800 px-4 flex items-center gap-2 z-20 border-l border-slate-700 shrink-0 hidden sm:flex">
+                        <Activity className="w-3 h-3 text-cyan-400" />
+                        <span className="text-[10px] text-slate-400 font-mono">LIVE FEED</span>
+                    </div>
+                </div>
+            );
+        };
+
+        // 1. Chat Widget Component
+        const ChatWidget = () => {
+            const [isOpen, setIsOpen] = useState(false);
+            const [messages, setMessages] = useState([
+                { id: 1, text: "Halo! Saya SCM Virtual Assistant. Ada yang bisa saya bantu terkait logistik, stok, atau akun koperasi Anda hari ini?", sender: 'bot' }
+            ]);
+            const [inputText, setInputText] = useState("");
+            const [isTyping, setIsTyping] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages, isTyping]);
+
+            const handleSend = (e) => {
+                e.preventDefault();
+                if (!inputText.trim()) return;
+
+                const userMsg = { id: Date.now(), text: inputText, sender: 'user' };
+                setMessages(prev => [...prev, userMsg]);
+                setInputText("");
+                setIsTyping(true);
+
+                setTimeout(() => {
+                    let botResponseText = "Maaf, saya tidak mengerti. Bisa ulangi?";
+                    const lowerInput = userMsg.text.toLowerCase();
+
+                    if (lowerInput.includes('stok') || lowerInput.includes('inventory') || lowerInput.includes('barang')) {
+                        botResponseText = "Data Inventory Real-time: Total stok aman di level 14,203 unit. Tidak ada peringatan stock-out mendesak saat ini.";
+                    } else if (lowerInput.includes('kirim') || lowerInput.includes('shipping') || lowerInput.includes('truk')) {
+                        botResponseText = "Status Pengiriman: 24 Truk inbound dijadwalkan hari ini. Shipment #SCM-8803 baru saja tiba di Warehouse A.";
+                    } else if (lowerInput.includes('koperasi') || lowerInput.includes('uang') || lowerInput.includes('saldo')) {
+                        botResponseText = "Info Koperasi: Saldo simpanan Anda Rp 15.400.000. Pengajuan pinjaman dapat dilakukan melalui menu E-Koperasi.";
+                    } else if (lowerInput.includes('halo') || lowerInput.includes('hi') || lowerInput.includes('pagi')) {
+                        botResponseText = "Halo! Senang bertemu Anda. Silakan tanya tentang operasional SCM atau status akun Anda.";
+                    } else {
+                        botResponseText = "Saya mencatat pertanyaan tersebut. Untuk isu kompleks, silakan buat tiket di menu 'Ops Support' atau hubungi admin manusia.";
+                    }
+
+                    setMessages(prev => [...prev, { id: Date.now() + 1, text: botResponseText, sender: 'bot' }]);
+                    setIsTyping(false);
+                }, 1500);
+            };
+
+            return (
+                <div className="fixed bottom-16 right-6 z-50 flex flex-col items-end gap-4 font-sans mb-4">
+                    {isOpen && (
+                        <div className="bg-white/90 backdrop-blur-xl border border-white/60 w-80 md:w-96 h-[450px] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 ring-1 ring-black/5">
+                            <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-4 flex justify-between items-center text-white shadow-md z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
+                                        <Bot className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-sm">SCM Assistant</h3>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                                            <span className="text-[10px] text-blue-100 font-medium">AI Online</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                                        <Minimize2 className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 scrollbar-thin scrollbar-thumb-slate-200">
+                                {messages.map((msg) => (
+                                    <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        {msg.sender === 'bot' && (
+                                            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 flex items-center justify-center mr-2 mt-1 shadow-sm shrink-0">
+                                                <Bot className="w-3 h-3 text-white" />
+                                            </div>
+                                        )}
+                                        <div className={`max-w-[80%] p-3.5 rounded-2xl text-sm shadow-sm leading-relaxed ${msg.sender === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'}`}>
+                                            {msg.text}
+                                        </div>
+                                    </div>
+                                ))}
+                                {isTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 flex items-center justify-center mr-2 mt-1 shadow-sm shrink-0">
+                                            <Bot className="w-3 h-3 text-white" />
+                                        </div>
+                                        <div className="bg-white border border-slate-100 p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1.5 items-center">
+                                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-100"></span>
+                                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-200"></span>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-100 flex items-center gap-2">
+                                <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Ketik pesan Anda..." className="flex-1 bg-slate-100 text-slate-700 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all placeholder:text-slate-400" />
+                                <button type="submit" disabled={!inputText.trim()} className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-200 disabled:opacity-50 disabled:shadow-none transition-all transform active:scale-95">
+                                    <Send className="w-4 h-4" />
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
+                    <button onClick={() => setIsOpen(!isOpen)} className={`group relative flex items-center justify-center w-14 h-14 rounded-full shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:scale-105 ${isOpen ? 'bg-slate-700 rotate-90' : 'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
+                        {isOpen ? <X className="w-6 h-6 text-white" /> : (
+                            <>
+                                <MessageSquare className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                                </span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            );
+        };
+
+        const DashboardCard = ({ title, value, subtitle, icon: Icon, color, trend, imageUrl }) => (
+            <div className="relative overflow-hidden bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group duration-300 transform hover:-translate-y-1">
+                {/* Background Watermark Image */}
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform translate-x-2 -translate-y-2 pointer-events-none">
+                     {imageUrl ? (
+                        <img src={imageUrl} alt="" className="w-24 h-24 object-contain grayscale" />
+                     ) : (
+                        <Icon className="w-24 h-24 text-slate-400" />
+                     )}
+                </div>
+
+                <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-100">
+                             {imageUrl ? (
+                                <img src={imageUrl} alt="icon" className="w-8 h-8 object-contain" />
+                             ) : (
+                                <div className={`p-1 rounded-lg ${color} bg-opacity-10`}>
+                                    <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-').replace('-500', '-600')}`} />
+                                </div>
+                             )}
+                        </div>
+                        {trend && (
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${trend === 'up' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                                {trend === 'up' ? '+2.4%' : '-1.2%'}
+                            </span>
+                        )}
+                    </div>
+                    <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
+                    <p className="text-2xl font-bold text-slate-800 mt-1 group-hover:text-blue-600 transition-colors">{value}</p>
+                    <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
+                </div>
+            </div>
+        );
+
+        const HomeContent = () => {
+            const [rates, setRates] = useState([
+                { code: 'USD', buy: 15450, sell: 15600, icon: '$' },
+                { code: 'SGD', buy: 11450, sell: 11600, icon: 'S$' },
+                { code: 'EUR', buy: 16800, sell: 17100, icon: '€' },
+                { code: 'CNY', buy: 2150, sell: 2250, icon: '¥' },
+            ]);
+
+            // Data Feed Baru sesuai permintaan
+            const feedItems = [
+                { id: 1, text: "shipment trading telah tiba di Plant Perawang", status: "Delivered", time: "Just now" },
+                { id: 2, text: "shipment trading patimban On proses waiting aproval", status: "Pending", time: "15 mins ago" },
+                { id: 3, text: "shipment trading telah tiba di Plant IKPP", status: "Delivered", time: "45 mins ago" }
+            ];
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setRates(prevRates => prevRates.map(rate => {
+                        const fluctuate = Math.floor(Math.random() * 20) - 10;
+                        return { ...rate, buy: rate.buy + fluctuate, sell: rate.sell + fluctuate };
+                    }));
+                }, 3000);
+                return () => clearInterval(interval);
+            }, []);
+
+            return (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <DashboardCard 
+                            title="Total Inventory" 
+                            value="14,203" 
+                            subtitle="Unit dalam gudang" 
+                            icon={Package} 
+                            color="bg-blue-500" 
+                            trend="up" 
+                            imageUrl="https://cdn-icons-png.flaticon.com/128/679/679821.png"
+                        />
+                        <DashboardCard 
+                            title="Inbound Today" 
+                            value="24" 
+                            subtitle="Trucks arriving" 
+                            icon={Truck} 
+                            color="bg-emerald-500" 
+                            trend="up" 
+                            imageUrl="https://cdn-icons-png.flaticon.com/128/713/713311.png"
+                        />
+                        <DashboardCard 
+                            title="Pending Issues" 
+                            value="3" 
+                            subtitle="Butuh approval ops" 
+                            icon={AlertCircle} 
+                            color="bg-amber-500" 
+                            trend="down" 
+                            imageUrl="https://cdn-icons-png.flaticon.com/128/906/906794.png"
+                        />
+                        <DashboardCard 
+                            title="Trading Vol" 
+                            value="$45.2k" 
+                            subtitle="Daily run rate" 
+                            icon={Activity} 
+                            color="bg-purple-500" 
+                            trend="up" 
+                            imageUrl="https://cdn-icons-png.flaticon.com/128/3310/3310653.png"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-white/60 border border-white/60 rounded-3xl p-6 backdrop-blur-xl shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
+                            <h3 className="text-slate-800 font-bold text-lg mb-6 flex items-center gap-2">
+                                <div className="p-1.5 bg-blue-100 rounded-lg">
+                                    <Activity className="text-blue-600 w-5 h-5" />
+                                </div>
+                                Live Operations Feed
+                            </h3>
+                            <div className="space-y-3">
+                                {feedItems.map((item) => (
+                                    <div key={item.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border shrink-0 ${item.status === 'Pending' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
+                                            <img 
+                                                src={item.status === 'Pending' ? "https://cdn-icons-png.flaticon.com/128/906/906794.png" : "https://cdn-icons-png.flaticon.com/128/684/684908.png"} 
+                                                className="w-6 h-6 object-contain" 
+                                                alt="status"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-slate-700 text-sm font-semibold group-hover:text-blue-600 transition-colors capitalize">{item.text}</p>
+                                            <p className="text-slate-400 text-xs mt-0.5">Updated {item.time}</p>
+                                        </div>
+                                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${item.status === 'Pending' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'}`}>
+                                            {item.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-indigo-800 to-blue-900 rounded-3xl p-6 text-white relative overflow-hidden shadow-xl shadow-indigo-200 flex flex-col">
+                            <div className="absolute top-0 right-0 p-16 bg-white/10 rounded-full blur-3xl transform translate-x-10 -translate-y-10"></div>
+                            <div className="absolute bottom-0 left-0 p-10 bg-cyan-400/20 rounded-full blur-2xl transform -translate-x-5 translate-y-5"></div>
+                            
+                            <div className="relative z-10 flex-1">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h3 className="font-bold text-lg flex items-center gap-2"><DollarSign className="w-5 h-5 text-green-300" /> Kurs Valas</h3>
+                                        <p className="text-blue-200 text-xs flex items-center gap-1 mt-1">
+                                            <RefreshCw className="w-3 h-3 animate-spin" /> Live Update
+                                        </p>
+                                    </div>
+                                    <span className="bg-red-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm animate-pulse">LIVE</span>
+                                </div>
+                                
+                                <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-1">
+                                    <div className="grid grid-cols-3 text-[10px] uppercase text-blue-200 font-bold p-2 border-b border-white/10">
+                                        <span>Mata Uang</span>
+                                        <span className="text-right">Beli</span>
+                                        <span className="text-right">Jual</span>
+                                    </div>
+                                    <div className="divide-y divide-white/10">
+                                        {rates.map((rate) => (
+                                            <div key={rate.code} className="grid grid-cols-3 items-center p-2.5 hover:bg-white/5 transition-colors">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">{rate.icon}</span>
+                                                    <span className="font-bold text-sm">{rate.code}</span>
+                                                </div>
+                                                <div className="text-right font-mono text-sm tracking-tight text-green-300">{rate.buy.toLocaleString()}</div>
+                                                <div className="text-right font-mono text-sm tracking-tight text-red-300">{rate.sell.toLocaleString()}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-4 text-center">
+                                    <p className="text-[10px] text-blue-300/70">Updated: Just now • Bank Indonesia Rate Ref</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const InventoryContent = () => (
+            <div className="animate-fadeIn p-8 border border-white/60 rounded-3xl bg-white/40 backdrop-blur-sm min-h-[400px] flex items-center justify-center shadow-sm">
+                <div className="text-center">
+                    <div className="w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <img src="https://cdn-icons-png.flaticon.com/512/679/679821.png" className="w-20 h-20 object-contain" />
+                    </div>
+                    <h2 className="text-2xl text-slate-800 font-bold">Modul Inventory</h2>
+                    <p className="text-slate-500 max-w-md mt-2">Menampilkan data stok real-time, mutasi barang, dan stock opname dengan tampilan bersih.</p>
+                </div>
+            </div>
+        );
+
+        const OpsSupportContent = () => (
+            <div className="animate-fadeIn p-8 border border-white/60 rounded-3xl bg-white/40 backdrop-blur-sm min-h-[400px] flex items-center justify-center shadow-sm">
+                <div className="text-center">
+                    <div className="w-32 h-32 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                         <img src="https://cdn-icons-png.flaticon.com/512/3233/3233912.png" className="w-20 h-20 object-contain" />
+                    </div>
+                    <h2 className="text-2xl text-slate-800 font-bold">Operations Support</h2>
+                    <p className="text-slate-500 max-w-md mt-2">Ticketing system dan dukungan operasional lapangan.</p>
+                </div>
+            </div>
+        );
+
+        const TradingContent = () => (
+            <div className="animate-fadeIn p-8 border border-white/60 rounded-3xl bg-white/40 backdrop-blur-sm min-h-[400px] flex items-center justify-center shadow-sm">
+                <div className="text-center">
+                    <div className="w-32 h-32 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                         <img src="https://cdn-icons-png.flaticon.com/512/3310/3310653.png" className="w-20 h-20 object-contain" />
+                    </div>
+                    <h2 className="text-2xl text-slate-800 font-bold">Trading & Commercial</h2>
+                    <p className="text-slate-500 max-w-md mt-2">Data penjualan komoditas dan harga pasar.</p>
+                </div>
+            </div>
+        );
+
+        const KoperasiContent = () => (
+            <div className="animate-fadeIn p-8 border border-white/60 rounded-3xl bg-white/40 backdrop-blur-sm min-h-[400px] flex items-center justify-center shadow-sm">
+                <div className="w-full max-w-md bg-white/80 backdrop-blur-xl p-8 rounded-2xl shadow-lg border border-white/50 mx-auto">
+                    <div className="text-center mb-8">
+                        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                             <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" className="w-12 h-12 object-contain" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800">Login Koperasi</h2>
+                        <p className="text-slate-500 text-sm mt-1">Silakan masuk untuk mengakses simpanan & pinjaman</p>
+                    </div>
+
+                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">ID Anggota / NIK</label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                                <input type="text" placeholder="Contoh: KOP-2024001" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm" />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Password</label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                                <input type="password" placeholder="••••••••" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm" />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <a href="#" className="text-xs text-emerald-600 font-semibold hover:underline">Lupa Password?</a>
+                        </div>
+
+                        <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all transform active:scale-95 flex justify-center items-center gap-2">
+                            <LogOut className="w-4 h-4 rotate-180" /> Masuk Area Anggota
+                        </button>
+                    </form>
+
+                    <div className="mt-6 text-center border-t border-slate-100 pt-6">
+                        <p className="text-xs text-slate-400">Belum menjadi anggota? <a href="#" className="text-emerald-600 font-bold hover:underline">Daftar disini</a></p>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- APP UTAMA ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('Home');
+            const [scrolled, setScrolled] = useState(false);
+
+            useEffect(() => {
+                const handleScroll = () => {
+                    setScrolled(window.scrollY > 20);
+                };
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            const menuItems = [
+                { id: 'Home', icon: Home, label: 'Home' },
+                { id: 'Inventory', icon: Box, label: 'Inventory', url: 'https://myscm-app.github.io/myscm-login/' },
+                { id: 'Ops Support', icon: Headphones, label: 'Ops Support', url: 'https://sites.google.com/view/opersional?usp=sharing' },
+                { id: 'Trading', icon: TrendingUp, label: 'Trading', url: 'https://sites.google.com/view/dept-trading?usp=sharing' },
+                { id: 'Koperasi', icon: Users, label: 'Koperasi', url: 'https://sites.google.com/view/kawanmki?usp=sharing' },
+            ];
+
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'Home': return <HomeContent />;
+                    case 'Inventory': return <InventoryContent />;
+                    case 'Ops Support': return <OpsSupportContent />;
+                    case 'Trading': return <TradingContent />;
+                    case 'Koperasi': return <KoperasiContent />;
+                    default: return <HomeContent />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200 selection:text-blue-900 pb-20 relative overflow-x-hidden">
+                    
+                    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                        <div className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] bg-blue-100/40 rounded-full blur-[120px] mix-blend-multiply"></div>
+                        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-100/40 rounded-full blur-[100px] mix-blend-multiply"></div>
+                        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-cyan-100/40 rounded-full blur-[120px] mix-blend-multiply"></div>
+                    </div>
+
+                    <header className={`fixed top-0 w-full z-40 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-xl border-b border-white/60 py-2 shadow-sm' : 'bg-transparent py-4'}`}>
+                        <div className="container mx-auto px-6 flex justify-between items-center h-14">
+                            
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-gradient-to-tr from-blue-600 to-cyan-500 p-2 rounded-xl shadow-lg shadow-blue-200">
+                                        <Box className="w-5 h-5 text-white" />
+                                    </div>
+                                    <span className="text-xl font-bold text-slate-800 tracking-tight hidden md:inline">My SCM <span className="text-blue-600">Center</span></span>
+                                </div>
+
+                                <div className="hidden lg:flex items-center bg-slate-100/50 p-1 rounded-xl border border-white/40 shadow-sm backdrop-blur-md">
+                                    {menuItems.map((item) => {
+                                        const isActive = activeTab === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                // --- LOGIKA ONCLICK DIUBAH ---
+                                                onClick={() => {
+                                                    if (item.url) {
+                                                        // Jika item punya url, buka link tersebut
+                                                        window.location.href = item.url;
+                                                    } else {
+                                                        // Jika tidak, ganti tab halaman
+                                                        setActiveTab(item.id);
+                                                    }
+                                                }}
+                                                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 group ${
+                                                    isActive ? 'bg-white shadow-sm text-blue-600' : 'hover:bg-white/50 text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                <item.icon className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                                                <span className="text-xs font-bold tracking-wide">{item.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="hidden xl:flex relative group">
+                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 group-focus-within:text-blue-500 transition-colors" />
+                                    <input type="text" placeholder="Search..." className="bg-white border border-slate-200 rounded-full pl-9 pr-4 py-1.5 text-sm focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 w-48 transition-all shadow-sm text-slate-600 placeholder:text-slate-400" />
+                                </div>
+                                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all relative">
+                                    <Bell className="w-5 h-5" />
+                                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 border-2 border-white rounded-full"></span>
+                                </button>
+                                <div className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-100 to-slate-100 border border-white shadow-sm flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-200 transition-all">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full" />
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="container mx-auto px-6 pt-28 pb-12 relative z-10">
+                        <div className="mb-8 flex justify-between items-end">
+                            <div>
+                                <h2 className="text-3xl font-bold text-slate-800 mb-1 tracking-tight">{activeTab}</h2>
+                                <p className="text-slate-500 text-sm font-medium">Welcome back, Admin Logistics.</p>
+                            </div>
+                            <div className="text-right hidden sm:block">
+                                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/60 backdrop-blur-md border border-white/60 rounded-full shadow-sm">
+                                    <span className="relative flex h-2.5 w-2.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                                    </span>
+                                    <span className="text-slate-600 text-xs font-bold">System Online</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="min-h-[60vh]">
+                            {renderContent()}
+                        </div>
+                    </main>
+
+                    <ChatWidget />
+                    <FooterTicker />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
